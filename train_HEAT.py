@@ -4,6 +4,7 @@ warnings.filterwarnings('ignore')
 import argparse
 import time
 import copy
+import os
 
 import numpy as np
 import pandas as pd 
@@ -34,7 +35,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--seed',
                     nargs= '?',
-                    default=0,
+                    default=1,
                     type=int)
 parser.add_argument('--test_ratio',
                     nargs= '?',
@@ -669,6 +670,8 @@ for i in range(args.nb_run):
     print('epochs: ',args.epochs) #200
     auc_list = []
     ap_list = []
+    acc_list = []
+    f1_list = []
     epoch_list = []
     for epoch in range(args.epochs):
         # Flag to compute running time for each epoch
@@ -679,14 +682,24 @@ for i in range(args.nb_run):
         "time=", "{:.5f}".format(time.time() - t))
 
         ############ test dataset 
-        auc, ap, adj_pred, s, t = test_func(test_pos_edge_index, test_neg_edge_index)
-        print('auc: ', auc, 'ap: ', ap)
+        # 与 train.py / train_github.py 保持一致，返回 auc, ap, acc, f1 四个指标
+        auc, ap, acc, f1, adj_pred, s, t = test_func(test_pos_edge_index, test_neg_edge_index)
+        print('auc: ', auc, 'ap: ', ap, 'acc:', acc, 'f1:', f1)
         auc_list.append(auc)
         ap_list.append(ap)
+        acc_list.append(acc)
+        f1_list.append(f1)
         epoch_list.append(epoch)
 
     mean_time.append(time.time() - t_start)
-    df_iter = pd.DataFrame({'auc':auc_list, 'ap':ap_list, 'epoch':epoch_list})
+    # 保存四个评价指标到 csv
+    df_iter = pd.DataFrame({
+        'auc': auc_list,
+        'auprc': ap_list,
+        'acc': acc_list,
+        'f1': f1_list,
+        'epoch': epoch_list
+    })
     if args.noise:
         filename = 'results/AUC/'+dataset_name+'/'+dataset_name+'_noise_'+str(args.noise_disp)+'_iter'+str(i)+'.csv'
     elif args.dropout_gene:
@@ -714,7 +727,8 @@ for i in range(args.nb_run):
 
     model_name = 'model/'+'model_iter_'+str(i)+'.pth'
     torch.save(model, model_name)
-    auc, ap, adj_pred, s, t = test_func(test_pos_edge_index, test_neg_edge_index)
+    # 最终测试同样返回四个指标
+    auc, ap, acc, f1, adj_pred, s, t = test_func(test_pos_edge_index, test_neg_edge_index)
     roc_score, ap_score = auc, ap
     mean_roc.append(roc_score)
     mean_ap.append(ap_score)

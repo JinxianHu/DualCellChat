@@ -1,4 +1,5 @@
-from sklearn.metrics import roc_auc_score, average_precision_score
+from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, accuracy_score
+
 
 import torch
 from torch_geometric.utils import negative_sampling, remove_self_loops, add_self_loops
@@ -158,12 +159,20 @@ class DirectedGAE(torch.nn.Module):
 
         y, pred = y.detach().cpu().numpy(), pred.detach().cpu().numpy()
 
-        ### add by huo
         # adj_pred = self.decoder.forward_all(s, t) 
         # adj_pred = self.decoder.forward_all(s, t, sigmoid=False)
         adj_pred = self.decoder.forward_all(s, t, sigmoid=True)
 
-        return roc_auc_score(y, pred), average_precision_score(y, pred), adj_pred, s, t
+        # return roc_auc_score(y, pred), average_precision_score(y, pred), adj_pred, s, t
+        ################### modified by jinxian: Calculate metrics
+        auc = roc_auc_score(y, pred)
+        auprc = average_precision_score(y, pred)  # AUPRC is the same as AP
+        # Calculate F1 score with threshold 0.5
+        y_pred_binary = (pred >= 0.5).astype(int)
+        f1 = f1_score(y, y_pred_binary)
+        acc = accuracy_score(y, y_pred_binary)
+
+        return auc, auprc, acc, f1, adj_pred, s, t
 
     def test_posotive(self, s, t, pos_edge_index):
         # XXX
